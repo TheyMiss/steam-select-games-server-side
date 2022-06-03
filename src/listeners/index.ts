@@ -1,7 +1,7 @@
 import { selectingSpecGamePair } from '../selectSpecGames';
 
 const rooms = {};
-const score = {};
+//const score = {};
 export const listeners = (socket) => {
   socket.on('join_room', (data: { roomId: string; username: string }) => {
     socket.leaveAll();
@@ -9,7 +9,7 @@ export const listeners = (socket) => {
 
     if (rooms[data.roomId] !== undefined) {
       const playerInRoom = Object.keys(rooms[data.roomId].players).length;
-      const maxPlayersinRoom = 10;
+      const maxPlayersinRoom = 3;
 
       if (playerInRoom >= maxPlayersinRoom) {
         return socket.emit('message', { message: 'Room is full!' });
@@ -20,19 +20,19 @@ export const listeners = (socket) => {
     rooms[data.roomId] = {
       players:
         rooms[data.roomId] !== undefined
-          ? { ...rooms[data.roomId].players, [socket.id]: data.username }
-          : { [socket.id]: data.username },
+          ? { ...rooms[data.roomId].players, [socket.id]: { username: data.username, points: points } }
+          : { [socket.id]: { username: data.username, points: points } },
     };
 
-    score[data.roomId] = {
-      players:
-        score[data.roomId] !== undefined
-          ? { ...score[data.roomId].players, [rooms[data.roomId].players[socket.id]]: { points: points } }
-          : { [rooms[data.roomId].players[socket.id]]: { points: points } },
-    };
+    // score[data.roomId] = {
+    //   players:
+    //     score[data.roomId] !== undefined
+    //       ? { ...score[data.roomId].players, [rooms[data.roomId].players[socket.id]]: { points: points } }
+    //       : { [rooms[data.roomId].players[socket.id]]: { points: points } },
+    // };
 
     socket.to(data.roomId).emit('party_members', rooms[data.roomId]);
-    socket.emit('joined_room', { joined: true });
+    socket.emit('joined_room', { joined: true, roomId: data.roomId });
   });
 
   socket.on('leave_room', (roomId: string) => {
@@ -48,9 +48,9 @@ export const listeners = (socket) => {
   let round = 1;
 
   socket.on('start_game', (roomId: string) => {
-    socket.to(roomId).emit('send_data', { games: gamePair, points: points, round: round });
+    socket.to(roomId).emit('send_data', { games: gamePair, points: points, round: round, scoreBoard: rooms[roomId] });
 
-    socket.to(roomId).emit('send_scoreBoard', { scoreBoard: score[roomId].players });
+    //socket.to(roomId).emit('send_scoreBoard', rooms[roomId]);
   });
 
   socket.on('selected_game', (data: { gameId: string; roomId: string }) => {
@@ -58,7 +58,10 @@ export const listeners = (socket) => {
       if (data.gameId === undefined) {
         round = round + 1;
         gamePair = selectingSpecGamePair();
-        return socket.emit('send_data', { games: gamePair, points: points, round: round });
+        return socket.emit('send_data', {
+          gameData: { games: gamePair, points: points, round: round },
+          scoreBoard: rooms[data.roomId],
+        });
       }
 
       const gameWithMoreReviews = gamePair[0].reviews > gamePair[1].reviews ? gamePair[0] : gamePair[1];
@@ -73,11 +76,16 @@ export const listeners = (socket) => {
         gamePair = selectingSpecGamePair();
       }
 
-      score[data.roomId].players[rooms[data.roomId].players[socket.id]].points = points;
+      //  score[data.roomId].players[rooms[data.roomId].players[socket.id]].points = points;
 
-      socket.to(data.roomId).emit('send_scoreBoard', { scoreBoard: score[data.roomId].players });
+      rooms[data.roomId].players[socket.id].points = points;
 
-      socket.emit('send_data', { games: gamePair, points: points, round: round });
+      //socket.to(data.roomId).emit('send_scoreBoard', rooms[data.roomId]);
+
+      socket.emit('send_data', {
+        gameData: { games: gamePair, points: points, round: round },
+        scoreBoard: rooms[data.roomId],
+      });
     }
   });
 };
