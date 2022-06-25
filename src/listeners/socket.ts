@@ -3,6 +3,7 @@ import { selectingSpecGamePair } from '../selectSpecGames';
 import { sortPlayersHighestNumber } from '../utils/sortPlayersHighestNumber';
 
 const rooms = {};
+let playerAndRoom = {};
 let gamePair = selectingSpecGamePair();
 const gameInfo = {};
 const timeleft = {};
@@ -18,7 +19,7 @@ export const join_room = function (payload: { roomId: string; username: string }
     const maxPlayersinRoom = 3;
 
     if (playerInRoom >= maxPlayersinRoom) {
-      return socket.emit('message', { message: 'Room is full!' });
+      return socket.emit('game_info_message', { message: 'Room is full!' });
     }
   }
 
@@ -36,6 +37,7 @@ export const join_room = function (payload: { roomId: string; username: string }
 
   timeleft[payload.roomId] = { ...timeleft[payload.roomId], ...{ [socket.id]: 6 } };
   gameInfo[payload.roomId] = { ...gameInfo[payload.roomId], ...{ [socket.id]: { points: 0, round: 0 } } };
+  playerAndRoom = { ...playerAndRoom, ...{ [socket.id]: payload.roomId } };
 
   const sortedPlayersTable = sortPlayersHighestNumber(rooms[payload.roomId].players);
 
@@ -55,6 +57,8 @@ const checkIsGameOver = (roomId: string, socket: Socket): void => {
       setTimeout(() => {
         socket.to(roomId).emit('is_playing', { isPlaying: false });
       }, 6 * 1000);
+    } else {
+      socket.emit('game_info_message', { message: 'Game in progress!' });
     }
   }
 };
@@ -77,11 +81,15 @@ export const start_game = function (roomId: string): void {
     rooms[roomId].isStarted = true;
     socket.to(roomId).emit('is_playing', { isPlaying: true });
   } else {
-    return socket.emit('message', { message: 'Game in progress!' });
+    return socket.emit('game_info_message', { message: 'Game in progress!' });
   }
 };
 
 const send = (socket: Socket, roomId: string): void => {
+  if (!rooms[roomId].players[socket.id]) {
+    return;
+  }
+
   gamePair = selectingSpecGamePair();
 
   rooms[roomId].players[socket.id].points = gameInfo[roomId][socket.id].points;
@@ -99,9 +107,17 @@ const send = (socket: Socket, roomId: string): void => {
 export const get_data = function (roomId: string): void {
   const socket = this;
 
+  if (!rooms[roomId].players[socket.id]) {
+    return;
+  }
+
   send(socket, roomId);
 
   const time = setInterval(() => {
+    if (!rooms[roomId].players[socket.id]) {
+      return;
+    }
+
     timeleft[roomId][socket.id] -= 1;
     socket.emit('send_time', { timeleft: timeleft[roomId][socket.id] });
 
@@ -143,5 +159,30 @@ export const selected_game = function (payload: { gameId: string; roomId: string
     socket.emit('end_game');
     send(socket, payload.roomId);
     checkIsGameOver(payload.roomId, socket);
+  }
+};
+
+export const disconnect_room = function () {
+  const socket = this;
+
+  if (rooms[playerAndRoom[socket.id]]) {
+    delete rooms[playerAndRoom[socket.id]].players[socket.id];
+
+    const playerInRoom = Object.keys(rooms[playerAndRoom[socket.id]].players).length;
+
+    if (playerInRoom < 1) {
+      delete rooms[playerAndRoom[socket.id]];
+    } else {
+      const sortedPlayersTable = sortPlayersHighestNumber(rooms[playerAndRoom[socket.id]].players);
+      socket.to(playerAndRoom[socket.id]).emit('players_table', sortedPlayersTable);
+    }
+
+    if (playerInRoom === 1) {
+      socket
+        .to(playerAndRoom[socket.id])
+        .emit('game_info_message', { message: 'You need at least two players to play!' });
+    }
+
+    delete playerAndRoom[socket.id];
   }
 };
