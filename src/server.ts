@@ -6,8 +6,8 @@ import log from './logger';
 import { Server } from 'socket.io';
 import { listeners } from './listeners';
 import { instrument } from '@socket.io/admin-ui';
-
-const PORT = process.env.PORT;
+import config from './config/default';
+import connectToDb from './db/conn';
 
 const app = express();
 
@@ -35,6 +35,7 @@ io.on('connect', (socket) => {
 
 instrument(io, { auth: false });
 
-server.listen(PORT, () => {
-  log.info(`Server is listening at ${PORT}`);
+server.listen(config.port, () => {
+  log.info(`Server is listening at ${config.port}`);
+  connectToDb();
 });

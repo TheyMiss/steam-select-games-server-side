@@ -162,7 +162,7 @@ export const selected_game = function (payload: { gameId: string; roomId: string
   }
 };
 
-export const disconnect_room = function () {
+export const disconnect_room = function (): void {
   const socket = this;
 
   if (rooms[playerAndRoom[socket.id]]) {
