@@ -16,7 +16,7 @@ export const join_room = function (payload: { roomId: string; username: string }
 
   if (rooms[payload.roomId] !== undefined) {
     const playerInRoom = Object.keys(rooms[payload.roomId].players).length;
-    const maxPlayersinRoom = 3;
+    const maxPlayersinRoom = 10;
 
     if (playerInRoom >= maxPlayersinRoom) {
       return socket.emit('game_info_message', { message: 'Room is full!' });
@@ -123,13 +123,13 @@ export const get_data = function (roomId: string): void {
     timeleft[roomId][socket.id] -= 1;
     socket.emit('send_time', { timeleft: timeleft[roomId][socket.id] });
 
-    if (timeleft[roomId][socket.id] <= 0 && gameInfo[roomId][socket.id].round <= 5) {
+    if (timeleft[roomId][socket.id] <= 0 && gameInfo[roomId][socket.id].round <= 10) {
       gameInfo[roomId][socket.id].round += 1;
       timeleft[roomId][socket.id] = 6;
       send(socket, roomId);
     }
 
-    if (gameInfo[roomId][socket.id].round >= 5) {
+    if (gameInfo[roomId][socket.id].round >= 10) {
       clearInterval(time);
       socket.emit('send_time', { timeleft: 0 });
       rooms[roomId].players[socket.id].isPlaying = false;
@@ -141,24 +141,28 @@ export const get_data = function (roomId: string): void {
   }, 1000);
 };
 
-export const selected_game = function (payload: { gameId: string; roomId: string }): void {
+export const selected_game = function (payload: { appid: number; roomId: string }): void {
   const socket = this;
 
-  if (gameInfo[payload.roomId][socket.id].round <= 4) {
+  if (gameInfo[payload.roomId][socket.id].round <= 9) {
     const gameWithMoreReviews = gamePair[0].reviews > gamePair[1].reviews ? gamePair[0] : gamePair[1];
-    if (gameWithMoreReviews.id === payload.gameId) {
+    if (gameWithMoreReviews.appid === payload.appid) {
       gameInfo[payload.roomId][socket.id].points += 5;
     }
     gameInfo[payload.roomId][socket.id].round += 1;
-    if (gameInfo[payload.roomId][socket.id].round < 5) send(socket, payload.roomId);
+
+    if (gameInfo[payload.roomId][socket.id].round < 9) {
+      send(socket, payload.roomId);
+    }
     timeleft[payload.roomId][socket.id] = 6;
   }
 
-  if (gameInfo[payload.roomId][socket.id].round >= 5) {
+  if (gameInfo[payload.roomId][socket.id].round >= 10) {
     socket.emit('send_time', { timeleft: 0 });
     timeleft[payload.roomId][socket.id] = 6;
     rooms[payload.roomId].players[socket.id].isPlaying = false;
     socket.emit('end_game');
+
     send(socket, payload.roomId);
     checkIsGameOver(payload.roomId, socket);
   }
