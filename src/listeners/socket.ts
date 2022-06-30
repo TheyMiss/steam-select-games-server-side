@@ -186,5 +186,3 @@ export const disconnect_room = function (): void {
     delete playerAndRoom[socket.id];
   }
 };
-
-console.log(rooms, playerAndRoom, gamePair, gameInfo, timeleft);
