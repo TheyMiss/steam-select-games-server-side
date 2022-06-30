@@ -21,6 +21,8 @@ export const join_room = function (payload: { roomId: string; username: string }
     if (playerInRoom >= maxPlayersinRoom) {
       return socket.emit('game_info_message', { message: 'Room is full!' });
     }
+  } else {
+    socket.emit('game_info_message', { message: 'You need at least two players to play!' });
   }
 
   //Creates object of room id which has a players names and ids
@@ -182,7 +184,9 @@ export const disconnect_room = function (): void {
         .to(playerAndRoom[socket.id])
         .emit('game_info_message', { message: 'You need at least two players to play!' });
     }
-
-    delete playerAndRoom[socket.id];
   }
+
+  socket.emit('players_table', {});
+
+  delete playerAndRoom[socket.id];
 };
