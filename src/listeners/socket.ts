@@ -1,10 +1,10 @@
 import { Socket } from 'socket.io';
-import { selectingSpecGamePair } from '../selectSpecGames';
+import { selectingSpecGamePair } from '../utils/selectingSpecGamePair';
 import { sortPlayersHighestNumber } from '../utils/sortPlayersHighestNumber';
 
 const rooms = {};
 let playerAndRoom = {};
-let gamePair = selectingSpecGamePair();
+let gamePair;
 const gameInfo = {};
 const timeleft = {};
 
@@ -63,13 +63,13 @@ const checkIsGameOver = (roomId: string, socket: Socket): void => {
   }
 };
 
-export const start_game = function (roomId: string): void {
+export const start_game = async function (roomId: string): Promise<void> {
   const socket = this;
 
   socket.to(roomId).emit('start_game', rooms[roomId].isStarted);
 
   if (rooms[roomId].isStarted === false) {
-    gamePair = selectingSpecGamePair();
+    gamePair = await selectingSpecGamePair();
 
     Object.keys(rooms[roomId].players).map((uid) => {
       rooms[roomId].players[uid].points = 0;
@@ -85,12 +85,12 @@ export const start_game = function (roomId: string): void {
   }
 };
 
-const send = (socket: Socket, roomId: string): void => {
+const send = async (socket: Socket, roomId: string): Promise<void> => {
   if (!rooms[roomId].players[socket.id]) {
     return;
   }
 
-  gamePair = selectingSpecGamePair();
+  gamePair = await selectingSpecGamePair();
 
   rooms[roomId].players[socket.id].points = gameInfo[roomId][socket.id].points;
 
@@ -186,3 +186,5 @@ export const disconnect_room = function (): void {
     delete playerAndRoom[socket.id];
   }
 };
+
+console.log(rooms, playerAndRoom, gamePair, gameInfo, timeleft);

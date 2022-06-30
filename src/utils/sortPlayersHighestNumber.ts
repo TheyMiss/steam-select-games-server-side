@@ -1,4 +1,4 @@
-export const sortPlayersHighestNumber = (object) => {
+export const sortPlayersHighestNumber = (object): { uid: string; username: string; points: number }[] => {
   let arr: { uid: string; username: string; points: number }[] = [];
 
   Object.keys(object).forEach((key) => {
